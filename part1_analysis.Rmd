@@ -1,0 +1,1175 @@
+---
+title: <span style="color:blue; font-family:Arial;">The Influence of Media Multitasking on Moroccan EFL Teach-ers’ Reading Habits</span> 
+author: <span style="color:blue; font-family:Arial;">"Nirmal Ghimire, Ph.D."</span>
+date: <span style="color:blue; font-family:Arial;">"`r Sys.Date()`"</span>
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      comment = NA,
+                      warning = FALSE,
+                      message = FALSE,
+                      tidy = 'styler',
+                      error = FALSE, 
+                      highlight = TRUE, 
+                      prompt = FALSE,
+                      R.options = list(width = 75))
+
+# Load Libraries
+library(tidyverse)
+library(ggplot2)
+library(janitor)
+library(stringr)
+library(readr)
+library(dplyr)
+library(scales)
+library(ggthemes)
+library(gridExtra)
+library(FactoMineR)
+library(factoextra)
+library(stringr)
+library(MASS)      # For ordinal logistic regression
+library(car)       # For VIF calculation
+library(brant)     # For proportional odds test
+library(effects)   # For effect plots
+library(pscl)      # For pseudo R-squared
+library(lmtest)    # For likelihood ratio tests
+```
+
+## <span style="color:blue; font-family:Arial;">List of the Variables (after and before Cleaning)</span>
+<span style="color:blue; font-family:Arial;">We are going to use the `raw_data_clean` further modeling. The `raw_data` is the raw version of uploaded data.</span> 
+```{r data}
+raw_data <- read_csv("C:/Users/ghimiren/Desktop/Reading Habits Study Time Diary Survey for Moroccan Teachers/final_data.csv")
+# Getting Rid of Second and Third Rows from the Data set
+raw_data <- raw_data[-c(2:3), ]
+      #names(raw_data)
+# Making column names consistent by using clean_names function and saving the data in a new table
+raw_data_clean <- raw_data|>
+  clean_names()
+# Comparing column names after and before cleaning them
+names(raw_data_clean)
+dim(raw_data_clean)
+```
+
+
+```{r get_input_list}
+## Get the list of all non-NA values in your data
+data <- na.omit(unlist(raw_data_clean[c("q8_6_text", "q12_10_text", "q13_11_text", "q14_5_text", "q17_8_text", "q18_7_text", "q20_9_text", "q23_7_text", "q24_6_text", "q27_8_text", "q29_8_text", "q30_6_text", "q33_16_text", "q35_8_text", "q36_6_text")]))
+
+# Convert the list to a table
+#data.frame(data)
+```
+
+## <span style="color:blue; font-family:Arial;">Breaking the Dataset in Two Different Studies</span>
+```{r break_data}
+# create reading_data dataset
+reading_data <- raw_data_clean %>%
+  dplyr::select(duration_in_seconds, ip_address, q4, q6, q7, q8, q8_6_text, q12_1:q12_10_text, q13_1:q13_11_text,
+         q14, q14_5_text, q15, q16, q17_1:q17_8_text, q18_1:q18_7_text, q19, q20, q20_9_text, q21,
+         q22, q23_1:q23_7_text, q24_1:q24_6_text, q25)
+
+# create tv_internet_data dataset
+tv_internet_data <- raw_data_clean %>%
+  dplyr::select(duration_in_seconds, ip_address, q4, q6, q7, q8, q8_6_text, q12_1:q12_10_text, q13_1:q13_11_text,
+         q26:q37)
+
+# save datasets as CSV files
+#write.csv(reading_data, "reading_data.csv", row.names = FALSE)
+#write.csv(tv_internet_data, "tv_internet_data.csv", row.names = FALSE)
+
+# Checking the Variables 
+names(reading_data)
+names(tv_internet_data)
+dim(reading_data)
+```
+
+## <span style="color:blue; font-family:Arial;">Reading Study Data Modeling</span>
+```{r getting_rid_of_row_two}
+reading_data <- read_csv("C:/Users/ghimiren/Desktop/Reading Habits Study Time Diary Survey for Moroccan Teachers/reading_data.csv")
+#str(reading_data)
+```
+
+
+```{r change_class}
+#Changing the variable class
+reading_data <- reading_data %>%
+      # convert data types
+  mutate(
+    duration_in_seconds = as.numeric(duration_in_seconds),
+    across(q4:q25, as.factor))
+#summary(reading_data)
+```
+
+<span style="color:blue; font-family:Arial;">Looking at the summary, the variables having `_text` at the end is not useful. Getting rid of them:</span>
+```{r get_rid_text}
+new_data <- reading_data %>%
+  dplyr::select(-ends_with("_text"))
+str(new_data)
+```
+
+## <span style="color:blue; font-family:Arial;">Variables Used for Descriptive Analysis</span> 
+
+![Q-13](q-13.JPG)
+
+* <span style="color:blue; font-family:Arial;">The information in Question 13 doesn't seem to have direct use in the analysis. We can use it in descriptive analysis.</span> 
+
+## <span style="color:blue; font-family:Arial;">Background Variables Used in the Model</span>
+![Q-4](q-4.JPG)
+![Q-8](q-8.JPG)
+
+* <span style="color:blue; font-family:Arial;">This variable will be modified and used in the model. We combined teachers based on their years of experience. The new categories are **a) 0-5 Years, b) 6-10 Years, c) more than 10 Years**</span> 
+
+![Q-6](q-6.JPG)
+
+* <span style="color:blue; font-family:Arial;">This variable got dichotomized and the new categories were **a) Rural, b) Urban (Suburban + Urban)**</span> 
+
+![Q-7](q-7.JPG)
+
+## <span style="color:blue; font-family:Arial;">Variables Needed in Reading for Fun Model</span>
+
+![Q-14](q-14.JPG)
+![Q-15](q-15.JPG)
+![Q-16](q-16.JPG)
+![Q-17](q-17.JPG)
+![Q-19](q-19.JPG)
+
+## <span style="color:blue; font-family:Arial;">Variables Needed in Reading for Academic Purposes Model</span>
+
+![Q-20](q-20.JPG)
+![Q-21](q-21.JPG)
+![Q-22](q-22.JPG)
+![Q-23](q-23.JPG)
+![Q-25](q-25.JPG)
+
+## <span style="color:blue; font-family:Arial;">Variable Summary</span>
+```{r subset_data}
+read_data <- reading_data %>%
+  dplyr::select(duration_in_seconds, ip_address,
+         q4, q6, q7, q8, q14, q15, q16, 
+         q17_1, q17_2, q17_3, q17_4, q17_5, q17_6, q17_7,
+         q19, q20, q21, q22, 
+         q23_1, q23_2, q23_3, q23_4, q23_5, q23_6, q23_7, q25)
+summary(read_data[ ,-(1:2)])
+```
+
+## <span style="color:blue; font-family:Arial;">Preparing Variables to Use in the Models</span>
+- **Question 4 [q4 - *gender*]**: Response Codes
+  Female, Male
+- **Question 6 [q6 - *experience*]**: Response Codes
+  0-5 years = 0, 6-10 years = 1, 11-years and more = 2
+- **Question 7 [q7 - *sch_type*]**: Response Codes
+  Rural = 0, Urban/Suburban = 1
+- **Question 8 [q8 - *tchr_type*]**: Response Codes
+  pre-service = 0, inservice = 1
+- **Question 15 [q15 - *rf_time*]**: Response Codes 
+- **Question 16 [q16 - *rf_length*]**: Response Codes 
+  0 minutes = 0, 15  minutes = 1, 30  minutes = 2, 45  minutes = 3,
+  1 hour = 4, 1.5 hours = 5, 2 hours = 6, 3 hours or more = 7
+- **Question 17 [q17_1 - *rf_tv*, q17_2 - *rf_music*, q17_3 - *rf_pd*, q17_4 - *rf_write*, q17_5 - *rf_talk_phone*, q17_6 - *rf_onl_game*, q17_7 - *rf_soc_network*]**: Response Codes 
+  Never = 0, Alittle of the Time = 1, Some of the Time = 2, Most of the Time = 3
+- **Question 19 [q19 - *rf_disp*]**: Response Codes
+  No, not at all = 0, Yes, some = 1, Yes, a lot = 2
+- **Question 20 [q20 - *ra_text*]**: Response Codes
+  Textbook Chapters-Online, Journal articles-Online, Reports-Online, Novels-Online, Textbook Chapters-In   print, Reports-In print, Novels-In print, Other materials-Please specify
+- **Question 21 [q21 - *ra_time*]**: Response Codes
+  6:00 a.m.-11:59 a.m., Noon-6:00 p.m., 6:00 p.m.-11:59 p.m., Midnight-5:59 a.m.
+- **Question 22 [q22 - *ra_length*]**: Response Codes
+ 0 minutes = 0, 15  minutes = 1, 30  minutes = 2, 45  minutes = 3,
+  1 hour = 4, 1.5 hours = 5, 2 hours = 6, 3 hours or more = 7
+- **Question 23 [q23_1 - *ra_tv*, q23_2 - *ra_music*, q23_3 - *ra_write*, q23_4 - *ra_talk_phone*, q23_5 - *ra_video_game*, q23_6 - *ra_soc_network*, q23_7 - *ra_other*]**: Response Codes
+  Never = 0, A little of the time = 1, Some of the time = 2, Most of the time = 3
+- **Question 25 [q25 - *ra_disp*]**: Response Codes 
+  No, not at all = 0, Yes, some = 1, Yes, a lot = 2
+  
+```{r preparing_variables}
+# Question 6
+read_data$q6 <- factor(
+  ifelse(read_data$q6 %in% c("0 teaching experience", "1-5 years"), 0,
+    ifelse(read_data$q6 %in% c("11-15 years","16 - 20", "20+"), 2,
+      ifelse(read_data$q6 == "6-10 years", 1,read_data$q6)
+        )
+  ),
+  levels = c(0, 1, 2),
+  labels = c("0-5 years", "6-10 years", "11-years and more")
+)
+  #summary(read_data$q6)
+```
+
+```{R}
+# Question 7
+read_data$q7 <- factor(
+  ifelse(read_data$q7 == "Click to write Choice 4", NA,
+    ifelse(read_data$q7 %in% c("Urban", "Suburban"), 1,
+      ifelse(read_data$q7 == "Rural", 0, read_data$q7)
+    )
+  ),
+  levels = c(0, 1),
+  labels = c("Rural", "Urban/Suburban")
+  )
+    #summary(read_data$q7)
+```
+
+```{r}
+# Question 8
+read_data$q8 <- factor(ifelse(
+  read_data$q8 == "I am a pre-service teacher (i.e., I am currently in training at ​Centre régional des métiers de l’éducation et de la formation (CRMEF) or Ecole Normale Supérieure (ENS)",
+  0,
+  ifelse(
+    read_data$q8 == "I am an-service teacher (i.e., I am currently working full-time as a teacher)",
+    1,
+    NA
+  )
+), levels = c(0, 1), labels = c("pre-service", "inservice"))
+    #summary(read_data$q8)
+```
+
+```{r}
+# Question 14
+# Create a function to extract the first selection
+read_data$q14 <- as.character(read_data$q14)
+extract_first_selection <- function(text) {
+  selections <- strsplit(text, ",")[[1]]
+  first_selection <- trimws(selections[1])
+  return(first_selection)
+}
+# Apply the function to create a new variable with the first selection
+read_data$q14_first_selection <- sapply(read_data$q14, extract_first_selection)
+# Recode the first selection into the desired categories
+read_data$q14_recode <- factor(
+  read_data$q14_first_selection,
+  levels = c("News stories online", "Social media threads (e.g., Face book, Instagram, Twitter, etc.)", "Books online", "Magazines online", "Newspapers-In print", "Magazines-In print", "Other Materials in print (please specify)"),
+  labels = c("News stories online", "Social media threads", "Books online", "Magazines online", "Newspapers-In print", "Magazines-In print", "Other Materials in print (please specify)")
+)
+# Remove the intermediate variable 
+ read_data$q14_first_selection <- NULL
+# Change the class of the Variable
+ read_data$q14_recode <- as.factor(read_data$q14_recode)
+  #summary(read_data$q14_recode)
+```
+
+```{r}
+# Question 16
+# Adjusting the data with case_when for more control
+read_data <- read_data %>%
+  mutate(q16 = str_trim(q16),  # Trim whitespace first
+         q16 = case_when(
+           str_detect(q16, "^0 minutes$|^15[ ]*minutes$") ~ "less than 30 minutes",
+           str_detect(q16, "^30[ ]*minutes$|^45[ ]*minutes$") ~ "30-59 minutes",
+           str_detect(q16, "^1 hour$") ~ "60-89 minutes",
+           str_detect(q16, "^1\\.5 hours$") ~ "90-119 minutes",
+           str_detect(q16, "^2 hours$|^3 hours or more$") ~ "2 hours or more",
+           TRUE ~ "Invalid"  # Handles unmatched cases
+         )) %>%
+  mutate(q16 = factor(q16, levels = c(
+    "less than 30 minutes",
+    "30-59 minutes",
+    "60-89 minutes",
+    "90-119 minutes",
+    "2 hours or more"
+  )))
+
+# Now check the levels
+print(levels(read_data$q16))
+```
+
+
+```{r}
+# Re-coding Responses in Question 17(q17_2, q17_3, q17_4, q17_5, q17_6, q17_7) 
+# Function - using dplyr::recode_factor instead of car::recode
+recodelikert <- function(data, variables, categories) {
+  # Need to load dplyr
+  library(dplyr)
+  
+  for (variable in variables) {
+    # Using dplyr's recode_factor
+    data[[variable]] <- dplyr::recode_factor(data[[variable]], !!!categories)
+  }
+  return(data)
+}
+
+# Defining Categories
+categories <- list(
+  "Never" = 0,
+  "Alittle of the Time" = 1, 
+  "Some of the Time" = 2,
+  "Most of the Time" = 3
+)
+read_data <- recodelikert(read_data, c("q17_1", "q17_2", "q17_3", "q17_4", "q17_5", "q17_6", "q17_7"), categories)
+
+# Questions 23 (q23_1, q23_2, q23_3, q23_4, q23_5, q23_6, q23_7)
+# Defining Categories
+categories_1 <- list(
+  "Never" = 0,
+  "A little of the time" = 1,
+  "Some of the time" = 2,
+  "Most of the time" = 3
+)
+read_data <- recodelikert(read_data, c("q23_1", "q23_2", "q23_3", "q23_4", "q23_5", "q23_6", "q23_7"), categories_1)
+
+
+# Question 19, and saving as q19_recode
+read_data$q19_recode <- factor(
+  ifelse(read_data$q19 %in% c("Did not multi-task", "Not sure"), NA,
+         ifelse(read_data$q19 == "No, not at all", 0,
+                ifelse(read_data$q19 == "Yes, some", 1,
+                       ifelse(read_data$q19 == "Yes, a lot", 2, read_data$q19)
+                )
+         )
+  ),
+  levels = c(0, 1, 2),
+  labels = c("No, not at all", "Yes, some", "Yes, a lot"),
+  exclude = NULL
+)
+
+# Question 20
+read_data$q20 <- as.character(read_data$q20)
+# Apply the function to create a new variable with the first selection
+read_data$q20_first_selection <- sapply(read_data$q20, extract_first_selection)
+# Recode the first selection into the desired categories
+read_data$q20_recode <- factor(
+  read_data$q20_first_selection,
+  levels = c("Textbook Chapters-Online", "Journal articles-Online", "Reports-Online", "Novels-Online
+", "Textbook Chapters-In print", "Reports-In print", "Novels-In print", "Other materials-Please specify"),
+  labels = c("Textbook Chapters-Online", "Journal articles-Online", "Reports-Online", "Novels-Online", "Textbook Chapters-In print", "Reports-In print", "Novels-In print", "Other materials-Please specify")
+)
+# Remove the intermediate variable
+read_data$q20_first_selection <- NULL
+
+# Question 21
+read_data$q21 <- as.character(read_data$q21)
+# Apply the function to create a new variable with the first selection
+read_data$q21_first_selection <- sapply(read_data$q21, extract_first_selection)
+# Recode the first selection into the desired categories
+read_data$q21_recode <- factor(
+  read_data$q21_first_selection,
+  levels = c("6:00 a.m.-11:59 a.m.", "Noon-6:00 p.m.", "6:00 p.m.-11:59 p.m.", "Midnight-5:59 a.m."),
+  labels = c("6:00 a.m.-11:59 a.m.", "Noon-6:00 p.m.", "6:00 p.m.-11:59 p.m.", "Midnight-5:59 a.m.")
+)
+# Remove the intermediate variable
+read_data$q21_first_selection <- NULL
+
+# Question 22
+read_data$q22 <- factor(dplyr::recode(read_data$q22,
+  "0 minutes" = "less than 30 minutes",
+  "15 minutes" = "less than 30 minutes",
+  "30 minutes" = "30-59 minutes",
+  "45 minutes" = "30-59 minutes",
+  "1 hour" = "60-89 minutes",
+  "1.5 hours" = "90-119 minutes",
+  "2 hours" = "2 hours or more",
+  "3 hours or more" = "2 hours or more"
+))
+# Convert to factor with the specified levels
+levels(read_data$q22) <- c("less than 30 minutes", "30-59 minutes", "60-89 minutes", "90-119 minutes", "2 hours or more")
+
+# Question 25 and Saving as q25_recode
+read_data$q25_recode <- factor(
+  ifelse(read_data$q25 %in% c("Did not multi-task", "Not sure"), NA,
+         ifelse(read_data$q25 == "No, not at all", 0,
+                ifelse(read_data$q25 == "Yes, some", 1,
+                       ifelse(read_data$q25 == "Yes, a lot", 2, read_data$q25)
+                )
+         )
+  ),
+  levels = c(0, 1, 2),
+  labels = c("No, not at all", "Yes, some", "Yes, a lot"),
+  exclude = NULL
+)
+
+#summary(read_data[,-2])
+#str(read_data)
+```
+
+
+```{r changing_names}
+read_data <- read_data %>%
+  rename(gender = q4,
+         experience = q6,
+         sch_type = q7,
+         tchr_type = q8,
+         rf_text = q14_recode,
+         rf_time = q15,
+         rf_length = q16,
+         rf_tv = q17_1,
+         rf_music = q17_2,
+         rf_pd = q17_3,
+         rf_write = q17_4,
+         rf_talk_phone = q17_5,
+         rf_onl_game = q17_6,
+         rf_soc_network = q17_7,
+         rf_disp = q19_recode,
+         ra_text = q20_recode,
+         ra_time = q21_recode,
+         ra_length = q22,
+         ra_tv = q23_1,
+         ra_music = q23_2,
+         ra_write = q23_3,
+         ra_talk_phone = q23_4,
+         ra_video_game = q23_5,
+         ra_soc_network = q23_6,
+         ra_other = q23_7,
+         ra_disp = q25_recode)
+summary(read_data[,-2])
+#str(read_data)
+
+```
+
+
+## <span style="color:blue; font-family:Arial;">1. Investigating the Relationship Between Displacement and Demographic Factors:</span>
+```{r media_dem}
+# Cross-tabulation of rf_disp and gender
+rf_disp_gender_xtab <- xtabs(~ rf_disp + gender, data = read_data)
+# Calculate percentage values with two decimal places
+rf_disp_gender_xtab_percentage <- round(prop.table(rf_disp_gender_xtab, margin = 2) * 100, 2)
+rf_disp_gender_xtab_percentage
+
+# Cross-tabulation of ra_disp and gender
+ra_disp_gender_xtab <- xtabs(~ ra_disp + gender, data = read_data)
+# Calculate percentage values with two decimal places
+ra_disp_gender_xtab_percentage <- round(prop.table(ra_disp_gender_xtab, margin = 2) * 100, 2)
+ra_disp_gender_xtab_percentage
+
+# Cross-tabulation of rf_disp and experience
+rf_disp_experience_xtab <- xtabs(~ rf_disp + experience, data = read_data)
+# Calculate percentage values with two decimal digits
+rf_disp_experience_xtab_percentage <- round(prop.table(rf_disp_experience_xtab, margin = 2) * 100, 2)
+rf_disp_experience_xtab_percentage
+
+# Cross-tabulation of rf_disp and experience
+ra_disp_experience_xtab <- xtabs(~ ra_disp + experience, data = read_data)
+# Calculate percentage values with two decimal places
+ra_disp_experience_xtab_percentage <- round(prop.table(ra_disp_experience_xtab, margin = 2) * 100, 2)
+ra_disp_experience_xtab_percentage
+
+# Cross-tabulation of rf_disp and school type
+rf_disp_sch_type_xtab <- xtabs(~ rf_disp + sch_type, data = read_data)
+# Calculate percentage values with two decimal places
+rf_disp_sch_type_xtab_percentage <- round(prop.table(rf_disp_sch_type_xtab, margin = 2) * 100, 2)
+rf_disp_sch_type_xtab_percentage
+
+# Cross-tabulation of ra_disp and school type
+ra_disp_sch_type_xtab <- xtabs(~ ra_disp + sch_type, data = read_data)
+# Calculate percentage values with two decimal places
+ra_disp_sch_type_xtab_percentage <- round(prop.table(ra_disp_sch_type_xtab, margin = 2) * 100, 2)
+ra_disp_sch_type_xtab_percentage
+
+# Cross-tabulation of rf_disp and teacher type
+rf_disp_tchr_type_xtab <- xtabs(~ rf_disp + tchr_type, data = read_data)
+rf_disp_tchr_type_xtab_percentage <- round(prop.table(rf_disp_tchr_type_xtab, margin = 2) * 100, 2)
+rf_disp_tchr_type_xtab_percentage
+
+# Cross-tabulation of rf_disp and teacher type
+ra_disp_tchr_type_xtab <- xtabs(~ ra_disp + tchr_type, data = read_data)
+#ra_disp_tchr_type_xtab
+# Calculate percentage values with two decimal places
+ra_disp_tchr_type_xtab_percentage <- round(prop.table(ra_disp_tchr_type_xtab, margin = 2) * 100, 2)
+ra_disp_tchr_type_xtab_percentage
+```
+
+
+```{r rf_disp, out.width="100%"}
+# Filter out NAs from the dataset
+filtered_data <- read_data[complete.cases(read_data), ]
+
+# Create the grouped bar plots
+gender_rf_disp <- ggplot(filtered_data, aes(x = rf_disp, fill = gender)) +
+  geom_bar(position = "dodge", color = "black") +
+  labs(x = "Reading for Fun Displacement", y = "Frequency") +
+  scale_y_continuous(breaks = NULL) +  # Remove y-axis ticks
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        axis.ticks.y = element_blank(),  # Remove y-axis ticks
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 8),
+        axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10),
+        plot.title = element_text(size = 12, face = "bold")) +
+  scale_fill_manual(values = c("#0072B2", "#E69F00"),
+                    labels = c("Female", "Male"))
+
+gender_ra_disp <- ggplot(filtered_data, aes(x = ra_disp, fill = gender)) +
+  geom_bar(position = "dodge", color = "black") +
+  labs(x = "Reading for Academic Purposes", y = "") +
+  scale_y_continuous(breaks = NULL) +  # Remove y-axis ticks
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        axis.ticks.y = element_blank(),  # Remove y-axis ticks
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 8),
+        axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10),
+        plot.title = element_text(size = 12, face = "bold")) +
+  scale_fill_manual(values = c("#0072B2", "#E69F00"),
+                    labels = c("Female", "Male"))
+
+# Arrange the plots side by side
+#grid.arrange(gender_rf_disp, gender_ra_disp, ncol = 2)
+```
+
+
+```{r}
+final_data <- read_data|>
+  dplyr::select(gender, experience, sch_type,
+                tchr_type, rf_time, rf_length, 
+                rf_tv, rf_music, rf_pd, rf_write,
+                rf_talk_phone, rf_onl_game, rf_soc_network,
+                ra_length, ra_tv, ra_music, ra_write, 
+                ra_talk_phone, ra_video_game, ra_soc_network, 
+                ra_other, rf_text, rf_disp, ra_text,
+                ra_time, ra_disp)
+#dim(final_data)
+#str(final_data)
+#names(final_data)
+```
+
+## <span style="color:blue; font-family:Arial;">Chi-square test for Reading For Fun</span> 
+Overall, the analysis aimed to understand how different factors, such as gender, experience, school type, specific activities during reading, and overall reading behavior, are related to the displacement of time.
+
+```{r}
+# Select the relevant categorical variables for analysis
+rf_vars <- final_data %>%
+  dplyr::select(gender, experience, sch_type, rf_time, tchr_type,
+         rf_length, rf_tv, rf_music, rf_pd, rf_write,
+         rf_talk_phone, rf_onl_game, rf_soc_network, 
+         rf_text, rf_disp)
+
+# Perform chi-square tests for association between variables
+chisq_results_rf <- lapply(rf_vars, function(var) {
+  chisq.test(table(final_data$rf_disp, var))
+})
+
+# Print the chi-square test results
+for (i in seq_along(chisq_results_rf)) {
+  var_name_rf <- names(chisq_results_rf)[i]
+  chisq_res_rf <- chisq_results_rf[[i]]
+  cat("Chi-square test results for", var_name_rf, ":\n")
+  print(chisq_res_rf)
+  cat("\n")
+}
+```
+
+The chi-square test results revealed the following findings:
+
+* There was no significant association between gender and the displacement of time, χ²(2) = 3.53, p = 0.17.
+* Similarly, no significant association was found between experience and the displacement of time, χ²(4) = 6.17, p = 0.19.
+* However, a significant association was observed between **school type and the displacement of time, χ²(2) = 22.34, p < 0.001**.
+* The analysis also indicated a significant association between **timing of the reading for fun and the displacement of time, χ²(6) = 17.63, p = 0.01**.
+* Teacher type showed no significant association with the displacement of time, χ²(2) = 0.53, p = 0.77.
+* **Regarding the length of reading for fun**, a significant association was found with the displacement of time, **χ²(14) = 31.99, p = 0.00**.
+* The displacement of time was significantly associated with reading for fun activities such as **watching TV, listening to music, personal devices usage, and social networking, with p-values of 0.001, 0.04, 0.02, and 0.01, respectively**.
+* However, there was no significant association between the displacement of time and activities like writing, talking on the phone, playing online games, and reading texts (p > 0.05).
+* Finally, a significant association was observed between the **overall displacement of time and reading for fun, χ²(4) = 1264, p < 0.001**.
+
+In conclusion, the findings suggest that school type, reading for fun time, and specific activities during reading for fun may have a significant impact on the displacement of time. However, gender, experience, and teacher type do not seem to be strongly associated with the displacement of time.
+
+## <span style="color:blue; font-family:Arial;">Chi-square test for Reading For Academic Purposes</span>
+```{r}
+# Select the relevant categorical variables for analysis
+ra_vars <- final_data %>%
+  dplyr::select(gender, experience, sch_type, tchr_type,ra_time,
+         ra_length, ra_tv, ra_music, ra_write,ra_other,
+         ra_talk_phone, ra_video_game, ra_soc_network, 
+         ra_text, ra_disp)
+
+# Perform chi-square tests for association between variables
+chisq_results_ra <- lapply(ra_vars, function(var) {
+  chisq.test(table(final_data$ra_disp, var))
+})
+
+# Print the chi-square test results
+for (i in seq_along(chisq_results_ra)) {
+  var_name_ra <- names(chisq_results_ra)[i]
+  chisq_res_ra <- chisq_results_ra[[i]]
+  cat("Chi-square test results for", var_name_ra, ":\n")
+  print(chisq_res_ra)
+  cat("\n")
+}
+```
+
+Here's the interpretation of the chi-square test results for the variables:
+
+* gender: The chi-square test shows a non-significant association between the ra_disp (displacement of time) and gender (p-value = 0.1889). This suggests that there is no strong evidence to conclude that the displacement of time differs significantly based on gender.
+
+* **experience: The chi-square test indicates a significant association between ra_disp and experience (p-value = 0.02414)**. This suggests that the displacement of time may vary based on the level of teacher experience.
+
+* **sch_type: The chi-square test reveals a significant association between ra_disp and sch_type (p-value = 0.01659)**. This implies that the displacement of time may differ across rural and urban/suburban schools.
+
+* tchr_type: The chi-square test shows a non-significant association between ra_disp and tchr_type (p-value = 0.9439). This indicates that there is no strong evidence to suggest that the displacement of time differs significantly based on teacher type.
+
+* **ra_time, ra_length, ra_tv, ra_music, ra_write, ra_other, ra_talk_phone, ra_video_game, ra_soc_network, ra_text, and ra_disp: The chi-square tests indicate significant associations between ra_disp and these variables (p-values < 0.05)**. This implies that the displacement of time varies across different levels of these variables, suggesting that they may influence the displacement of time.
+
+* Activities ra_write (p-value = 0.3627), ra_other (p-value = 0.2078), ra_video_game (p-value = 0.2358), ra_soc_network (p-value = 0.07936) did not have statistically significant association with the displacement of time from reading fro academic purposes indicating that they do not influence the displacement.  
+
+## <span style="color:blue; font-family:Arial;">Overall Findings for both Reading for Fun and Reading for Academic Purposes</span>
+Based on the chi-square test results, the variables that had a statistically significant association with reading for fun and the displacement of time are:
+
+* sch_type
+* rf_time
+* rf_length
+* rf_tv
+* rf_music
+* rf_pd
+* rf_talk_phone
+* rf_onl_game
+* rf_soc_network
+
+These variables showed a significant association with the displacement of time while reading for fun.
+
+On the other hand, the variables that had a statistically significant relationship with reading for academic purposes and the displacement of time are:
+
+* experience
+* sch_type
+* ra_time
+* ra_length
+* ra_tv
+* ra_music
+* ra_talk_phone
+* ra_video_game
+* ra_soc_network
+
+These variables showed a significant association with the displacement of time while reading for academic purposes.
+
+It's important to note that the significance of these associations indicates that these variables are likely to have an impact on the displacement of time during reading, either for fun or academic purposes.
+
+```{r preparing_data_for_MCA}
+ra_data <- final_data[, c("experience", "sch_type", "ra_time", "ra_length", "ra_tv", "ra_music", "ra_talk_phone", "ra_video_game", "ra_soc_network", "ra_disp")]
+ra_data <- na.omit(ra_data)
+```
+
+## <span style="color:blue; font-family:Arial;">Ordinal Logistic Regression</span>
+Based on the categories for the outcome variables "ra_disp" and "rf_disp" ("No, not at all," "Yes, some," and "Yes, a lot"), these categories have an inherent ordering or hierarchy. The categories represent increasing levels or degrees of the outcome, indicating a natural order.
+
+In this case, I would recommend using ordinal logistic regression. Ordinal logistic regression is specifically designed to handle ordered categorical outcomes and is appropriate when the categories of the dependent variable have a natural order or hierarchy. It allows us to model the cumulative odds of falling into or above a particular category relative to the odds of falling below that category.
+
+By using ordinal logistic regression, we can assess the relationship between predictor variables and the ordered outcomes "No, not at all," "Yes, some," and "Yes, a lot," while considering the underlying ordinal structure of the categories.
+
+```{r checking_data}
+### i. Checking the Datatable
+summary(ra_data)
+```
+
+### <span style="color:blue; font-family:Arial;">A. Ordinal Logistic Regression on Reading for Academic Purposes</span>
+### <span style="color:blue; font-family:Arial;">a. Null Model</span>
+```{r null_model}
+library(MASS)
+# Predictor-less model
+null_model <- polr(formula = ra_disp ~ 1, data = ra_data)
+#summary(null_model)
+null_ra <- polr(formula = ra_disp ~ 1, data = read_data)
+summary(null_ra)
+```
+
+The null model was fitted using the ordinal logistic regression analysis (polr function) to examine the relationship between the outcome variable (ra_disp) and no predictors. The model had no coefficients, indicating that there were no independent variables included in the analysis.
+
+* **The intercept value for the comparison between "No, not at all" and "Yes, some" categories was -0.8978 (SE = 0.0872), with a t-value of -10.2929. This indicates a significant difference between these categories.**
+* **The intercept value for the comparison between "Yes, some" and "Yes, a lot" categories was 1.3079 (SE = 0.0966), with a t-value of 13.5328. This also indicates a significant difference between these categories.**
+
+### <span style="color:blue; font-family:Arial;">b. Final Model</span>
+```{r ordinal_log_regression}
+# Fit the ordinal logistic regression model
+model <- polr(ra_disp ~ experience + sch_type + ra_time + ra_length + ra_tv + ra_music +
+                 ra_talk_phone + ra_video_game + ra_soc_network, data = ra_data)
+
+# Print the model summary
+#summary(model)
+
+model_read <- polr(ra_disp ~ experience + sch_type + ra_time + ra_length + ra_tv + ra_music +
+                 ra_talk_phone + ra_video_game + ra_soc_network, data = read_data)
+summary(model_read)
+```
+
+**Key Findings**:
+
+* The model exhibited a significant residual deviance of 1172.276 (p < .05) and an AIC value of 1226.276.
+* The final ordinal logistic regression model, which included predictors such as experience, sch_type, ra_time, ra_length, ra_tv, ra_music, ra_talk_phone, ra_video_game, and ra_soc_network, demonstrated a moderate effect size with a Proportional Reduction in Error (PRE) [PRE = (1323.319 - 1172.276) / 1323.319] of 0.1141. This indicates that the final model accounted for approximately 11.41% of the variance in the displacement of time.
+
+a. **Experience**: Participants with 6-10 years of experience (β = -0.58, SE = 0.18, t = -3.15, p < .05) and participants with 11 or more years of experience (β = -0.49, SE = 0.22, t = -2.24, p < .05) showed a significant negative effect on the likelihood of moving to a higher category of displacement of time (i.e., from No, not at all to Yes, some, or from Yes, some to Yes, a lot) compared to teachers who had 0-5 years of teaching experience.
+
+b. **School Type**: Participants from urban/suburban schools (β = 0.35, SE = 0.17, t = 2.08, p < .05) had a significantly higher likelihood of moving to a higher category of displacement of time compared to participants from rural schools.
+
+c. **Time of Day**: Participants who reported displacement of time from reading for academic purpose during the evening (6:00 p.m. to 11:59 p.m.) had statistically significant lower log-odds of moving to a higher category of displacement compared to participants who reported reading for academic purposes during the morning time (6:00 a.m. to 11:59 a.m.).
+
+d. **Length of Usage**: There was no difference in the displacement of time from reading for academic purposes based on the length of reading.
+
+e. **Watching TV**: Participants who reported using specific media types for specific time(ra_tv3: who watched tv most of the time) have higher log-odds of moving to a higher category of time displacement compared to participants who did not watch TV while reading for academic purposes.
+
+f. **Listening to Music**: Teachers who listened to music for a little of a time when they were reading for academic purposes felt statistically significantly displayed themselves from reading for academic purpose (β = -0.83, SE = 0.41, t = -1.99, p < .05), compared to the teachers who did not listen to the music while they were reading for academic purposes.  
+
+g. **Playing Video Game**: Participants who reported to have played Video Game "Most of the Time" while reading for academic purposes felt statistically significantly displaced (β = -0.86, SE = 0.44, t = -1.97, p < .05) from reading for academic purposes compared to the participants who did not play video game during this time. 
+
+
+### <span style="color:blue; font-family:Arial;">B. Ordinal Logistic Regression (Reading for Fun Analysis)</span>
+```{r checking_rf_vars}
+#head(rf_vars)
+```
+
+### <span style="color:blue; font-family:Arial;">a. Null Model</span>
+```{r null_model_rf}
+rf_data <- na.omit(rf_vars)
+summary(rf_data)
+null_model_rf <- polr(formula = rf_disp ~ 1, data = rf_data)
+#summary(null_model_rf)
+
+null_model_rf_read <- polr(formula = rf_disp ~ 1, data = read_data)
+summary(null_model_rf_read)
+```
+
+**Key Findings:**
+
+* The intercepts represent the log-odds of the cumulative probabilities of each level of the rf_disp variable. The intercept for the comparison between "No, not at all" and "Yes, some" was estimated to be -0.7922 (SE = 0.0859), and the corresponding t-value was -9.2252. This indicates that the log-odds of reporting "Yes, some" compared to "No, not at all" were significantly different from zero (t = - 9.2252, p < .001).
+
+* Similarly, the intercept for the comparison between "Yes, some" and "Yes, a lot" was estimated to be 1.4715 (SE = 0.1021), with a t-value of 14.4154. This suggests that the log-odds of reporting "Yes, a lot" compared to "Yes, some" were significantly different from zero (t = 14.4154, p < .001).
+
+* The overall model fit was assessed using the residual deviance, which was calculated to be 1292.789, and the Akaike Information Criterion (AIC), which was 1296.789. A lower AIC value indicates a better fit of the model to the data.
+
+### <span style="color:blue; font-family:Arial;">b. Final Model</span>
+```{r final_model_rf}
+# Fit the ordinal logistic regression model
+model_final <- polr(rf_disp ~ sch_type + rf_time + rf_length + rf_tv + rf_music +
+                 rf_pd + rf_talk_phone + rf_onl_game + rf_soc_network, data = rf_data)
+
+# Print the model summary
+#summary(model_final)
+
+model_final_read <- polr(rf_disp ~ sch_type + rf_time + rf_length + rf_tv + rf_music +
+                 rf_pd + rf_talk_phone + rf_onl_game + rf_soc_network, data = read_data)
+
+# Print the model summary
+summary(model_final_read)
+```
+
+* The final model demonstrates a better fit to the data compared to the null model. The Residual Deviance in the final model (1121.49) is significantly lower than in the null model (1177.49), indicating a reduction in unexplained variation. The AIC value in the final model (1177.49) is also lower than in the null model (119.299), suggesting a better balance between fit and complexity.
+* Furthermore, the inclusion of predictor variables in the final model results in a Proportional Reduction in Error (PRE) of approximately 13.25%. This indicates that the final model improves prediction accuracy by around 13.25% compared to the null model, highlighting the importance of the predictor variables in explaining the frequency of digital display usage for reading.
+
+These findings suggest that the final model provides a more accurate representation of the relationship between the predictor variables and the outcome, supporting its utility for predicting and understanding the frequency of digital display usage for reading.
+
+**Key Findings**:
+
+Results revealed significant associations between certain predictor variables and the volume of displacement from reading for fun. 
+
+* **School type**: was found to be a significant predictor (β = 0.803, SE = 0.174, t = 4.60), indicating that teachers from urban/suburban schools were more likely to report higher frequencies of displacement compared to the teachers from rural schools.
+* **Reading Time**: Teachers who read for fun during Noon - 6pm reported to have significantly less distraction (β = -0.41, SE = 0.21, t = -1.96) compared to the teachers who read during 6 am - 11:59am.
+* **Length of Reading**: The duration of reading for fun showed a mixed amount of displacement. Specifically, teachers who reported reading for fun for 30-59 minutes (β = -0.78, SE = 0.296, t = -2.64), and for 2 hours or more (β = -0.61, SE = 0.26, t = -2.32) felt statistically significantly less distracted compared to the teachers who read for fun for less than 30 minutes. 
+* **Watching TV***: Teachers who reported watching TV for 2 hours or more had statistically significantly higher displacement of their time (β = 0.96, SE = 0.410, t = 2.37) compared to the teachers who did watch TV while they were reading for fun.
+* **Talk on Phone**: Teachers who talked on the phone some of the time while they were reading for fun had statistically significantly higher time displacement rate (β = 0.74, SE = 0.36, t = 2.02) compared to the teachers who did not talk on the phone.
+* **Using Social Network Sites**: This is one of the variables where we see difference among all categories. Compared to the teachers who did not use the social network sites like Facebook, etc. reported statistically significantly lower time displacement from reading for fun compared to the teachers who reported using social network for "A little of the time" (β = -1.04, SE = 0.37, t = -2.78), "Some of the time" (β = -0.83, SE = 0.36, t = -2.28), and "Most of the time" (β = -0.90, SE = 0.42, t = -2.17).
+
+## Assumption Checks
+In order to run ordinal logistic regression and interpret the results accurately, there are certain assumptions that should be met. Here are the key assumptions for ordinal logistic regression:
+
+* **Proportional Odds Assumption**: This assumption requires that the relationship between the predictors and the outcome variable is constant across all levels of the outcome variable. In other words, the odds ratios for each predictor should be constant across different categories of the outcome variable. We can examine the parallel lines assumption by checking if the relationship between the predictors and the log-odds of the outcome remains consistent across different levels of the outcome. This can be done graphically by plotting the observed log-odds against the predictors for each category of the outcome and checking if they are roughly parallel.
+```{r proportional_odds_assumption}
+rf_data <- na.omit(rf_data)
+# Fit the model
+model_final_rf <- polr(rf_disp ~ sch_type + rf_time + rf_length + rf_tv + rf_music +
+                     rf_pd + rf_talk_phone + rf_onl_game + rf_soc_network, data = rf_data)
+
+# Create a new data frame to store predicted probabilities
+predicted_probs <- data.frame(predict(model_final_rf, type = "probs"))
+
+# Add the predicted probabilities to rf_data
+rf_data$predicted_probs <- predicted_probs
+
+# Plotting the relationship between predictors and log-odds for each category
+library(ggplot2)
+ggplot(rf_data, aes(x = rf_time, y = log(predicted_probs[, 1]/predicted_probs[, 2]))) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_wrap(~ rf_disp, nrow = 1)
+```
+
+* **Linearity of the Logit**: The relationship between the predictors and the cumulative logits should be linear. This assumption ensures that the effect of the predictors on the outcome is consistent across different levels of the outcome. We can assess this assumption by examining the logit plots or fitting polynomial terms to the predictors and checking if the model fit improves significantly.
+
+```{r linearity_of_logit}
+# Create a new data frame for plotting
+plot_data <- rf_data[, c("rf_time", "rf_disp")]
+
+# Generate predicted probabilities for each category of the outcome
+plot_data$predicted_probs <- predict(model_final_rf, type = "probs")
+
+# Calculate the cumulative logit odds
+plot_data$logit_odds <- log(plot_data$predicted_probs[, 1] / plot_data$predicted_probs[, 2])
+
+# Plotting the cumulative logit odds against the predictor variable
+library(ggplot2)
+ggplot(plot_data, aes(x = rf_time, y = logit_odds)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+* **Independence of Observations**: The observations should be independent of each other. This assumption implies that there is no systematic relationship or dependency between the observations in the dataset. This assumption is typically assumed in the absence of any specific design or sampling information. However, if we suspect that there may be dependencies or clustering in your data, you can explore techniques such as clustered standard errors or mixed-effects models to account for the dependencies.
+```{r independence_of_observations}
+# Checking independence assumption using Durbin-Watson test
+library(lmtest)
+
+# Fit a logistic regression model
+model_logit <- glm(rf_disp ~ sch_type + rf_time + rf_length + rf_tv + rf_music +
+                    rf_pd + rf_talk_phone + rf_onl_game + rf_soc_network,
+                  data = rf_data, family = binomial())
+
+# Perform Durbin-Watson test
+dwtest(model_logit)
+```
+
+The Durbin-Watson test was conducted to assess the presence of autocorrelation in the residuals of the regression model. The test yielded a Durbin-Watson statistic of 1.8848. The associated p-value was 0.08909.
+
+The results of the Durbin-Watson test did not provide strong evidence to suggest the presence of autocorrelation in the residuals (DW = 1.8848, p = 0.08909). Therefore, it can be concluded that the assumption of no autocorrelation in the residuals is reasonable for the current regression model.
+
+* **Adequate Sample Size**: The sample size should be large enough to ensure reliable estimates and stable model performance. There is no strict rule for the minimum sample size, but a commonly suggested guideline is to have at least 10-15 observations per predictor variable.
+
+### Proporational Odds Test (Brant Test)
+```{r Brant_test}
+# For academic reading model
+brant_test_ra <- brant(model_read)
+print(brant_test_ra)
+
+# For recreational reading model
+brant_test_rf <- brant(model_final_read)
+print(brant_test_rf)
+```
+
+## Variance Inflation Factors for Multicollinearity
+```{r vif_analysis}
+##########################################################
+# 2. Variance Inflation Factors for Multicollinearity
+##########################################################
+
+# Create a linear model with the same predictors to check VIF
+# For academic reading model
+lm_ra <- lm(as.numeric(ra_disp) ~ experience + sch_type + ra_time + 
+            ra_length + ra_tv + ra_music + ra_talk_phone + 
+            ra_video_game + ra_soc_network, data = read_data)
+vif_ra <- vif(lm_ra)
+print(vif_ra)
+
+# For recreational reading model
+lm_rf <- lm(as.numeric(rf_disp) ~ sch_type + rf_time + rf_length + 
+            rf_tv + rf_music + rf_pd + rf_talk_phone + 
+            rf_onl_game + rf_soc_network, data = read_data)
+vif_rf <- vif(lm_rf)
+print(vif_rf)
+```
+
+## calculate Pseudo R-squared for Ordinal Logistic Regression
+```{r pseudo_r_squared}
+##########################################################
+# 3. Calculate Pseudo R-squared Values
+##########################################################
+
+# For academic reading model
+pr2_ra <- pR2(model_read)
+print(pr2_ra)
+
+# For recreational reading model
+pr2_rf <- pR2(model_final_read)
+print(pr2_rf)
+```
+
+## Calculate Odds Ratios and Confidence Intervals
+```{r odds_ratios}
+##########################################################
+# 4. Calculate Odds Ratios and Confidence Intervals
+##########################################################
+
+# Function to calculate odds ratios, CIs, and p-values
+calculate_or_ci <- function(model) {
+  # Extract coefficients
+  coefs <- summary(model)$coefficients
+  
+  # Calculate odds ratios and CIs
+  odds_ratios <- exp(coefs[, "Value"])
+  ci_lower <- exp(coefs[, "Value"] - 1.96 * coefs[, "Std. Error"])
+  ci_upper <- exp(coefs[, "Value"] + 1.96 * coefs[, "Std. Error"])
+  
+  # Calculate p-values
+  p_values <- 2 * (1 - pnorm(abs(coefs[, "t value"])))
+  
+  # Combine results
+  results <- data.frame(
+    OddsRatio = odds_ratios,
+    CI_Lower = ci_lower,
+    CI_Upper = ci_upper,
+    p_value = p_values
+  )
+  
+  return(results)
+}
+
+# Calculate for both models
+or_ci_ra <- calculate_or_ci(model_read)
+or_ci_rf <- calculate_or_ci(model_final_read)
+
+print(or_ci_ra)
+print(or_ci_rf)
+```
+
+## Odds Ratios and Effect Sizes
+```{r odds_ratios_effect_sizes}
+##########################################################
+# 5. Odds Ratios and Effect Sizes
+##########################################################
+
+# For academic reading model
+model_summary_ra <- summary(model_read)
+coefs_ra <- model_summary_ra$coefficients[, "Value"]
+se_ra <- model_summary_ra$coefficients[, "Std. Error"]
+pvalues_ra <- 2 * (1 - pnorm(abs(coefs_ra/se_ra)))
+odds_ratios_ra <- exp(coefs_ra)
+ci_lower_ra <- exp(coefs_ra - 1.96 * se_ra)
+ci_upper_ra <- exp(coefs_ra + 1.96 * se_ra)
+
+# Print results for academic reading
+cat("Odds Ratios for Academic Reading Model:\n")
+for (i in 1:length(coefs_ra)) {
+  var_name <- names(coefs_ra)[i]
+  cat(sprintf("%s: OR = %.2f, 95%% CI [%.2f, %.2f], p = %.3f\n", 
+              var_name, odds_ratios_ra[i], ci_lower_ra[i], ci_upper_ra[i], pvalues_ra[i]))
+}
+
+# For recreational reading model
+model_summary_rf <- summary(model_final_read)
+coefs_rf <- model_summary_rf$coefficients[, "Value"]
+se_rf <- model_summary_rf$coefficients[, "Std. Error"]
+pvalues_rf <- 2 * (1 - pnorm(abs(coefs_rf/se_rf)))
+odds_ratios_rf <- exp(coefs_rf)
+ci_lower_rf <- exp(coefs_rf - 1.96 * se_rf)
+ci_upper_rf <- exp(coefs_rf + 1.96 * se_rf)
+
+# Print results for recreational reading
+cat("\nOdds Ratios for Recreational Reading Model:\n")
+for (i in 1:length(coefs_rf)) {
+  var_name <- names(coefs_rf)[i]
+  cat(sprintf("%s: OR = %.2f, 95%% CI [%.2f, %.2f], p = %.3f\n", 
+              var_name, odds_ratios_rf[i], ci_lower_rf[i], ci_upper_rf[i], pvalues_rf[i]))
+}
+```
+
+##  Likelihood Ratio Test to Compare Models
+```{r likelihood_ratio_test}
+##########################################################
+# 6. Likelihood Ratio Test to Compare Models
+##########################################################
+
+# First convert the models to their formulas
+ra_full_formula <- formula(model_read)
+ra_base_formula <- ra_disp ~ experience + sch_type
+
+# Get the complete data with no missing values for all variables in the full model
+all_vars_ra <- all.vars(ra_full_formula)
+complete_data_ra <- na.omit(read_data[, all_vars_ra])
+
+# Now fit both models on this complete dataset
+ra_base_new <- polr(ra_base_formula, data = complete_data_ra)
+ra_full_new <- polr(ra_full_formula, data = complete_data_ra)
+
+# Compare models
+lrt_ra <- anova(ra_base_new, ra_full_new, test = "Chisq")
+print("Likelihood Ratio Test for Academic Reading Models:")
+print(lrt_ra)
+
+# Similar approach for recreational reading
+rf_full_formula <- formula(model_final_read)
+rf_base_formula <- rf_disp ~ sch_type
+
+# Get complete data
+all_vars_rf <- all.vars(rf_full_formula)
+complete_data_rf <- na.omit(read_data[, all_vars_rf])
+
+# Fit both models on complete data
+rf_base_new <- polr(rf_base_formula, data = complete_data_rf)
+rf_full_new <- polr(rf_full_formula, data = complete_data_rf)
+
+# Compare models
+lrt_rf <- anova(rf_base_new, rf_full_new, test = "Chisq")
+print("Likelihood Ratio Test for Recreational Reading Models:")
+print(lrt_rf)
+```
+
+## Cohen's d Effect Size Calculation
+```{r cohen_d_effect_size}
+##########################################################
+# 7. Effect Size Calculations (Cohen's d approximation)
+##########################################################
+
+# Function to calculate standardized mean difference for categorical predictors
+calculate_effect_size <- function(data, predictor, outcome) {
+  # Create contingency table
+  cont_table <- table(data[[predictor]], data[[outcome]])
+  
+  # Get proportions for each level of predictor
+  props <- prop.table(cont_table, margin = 1)
+  
+  # Calculate weighted average for higher categories
+  level_props <- list()
+  for (i in 1:nrow(props)) {
+    # Sum proportions for "Yes, some" and "Yes, a lot"
+    level_props[[i]] <- sum(props[i, 2:3])
+  }
+  
+  # Calculate Cohen's d (for binary predictors)
+  if (length(level_props) == 2) {
+    p1 <- level_props[[1]]
+    p2 <- level_props[[2]]
+    # Pooled standard deviation
+    sd_pooled <- sqrt(p1 * (1 - p1) + p2 * (1 - p2))
+    # Effect size
+    d <- (p2 - p1) / sd_pooled
+    return(d)
+  } else {
+    return(NA) # Return NA for non-binary predictors
+  }
+}
+
+# Calculate effect sizes for key binary predictors
+# School type effect on academic reading
+d_sch_ra <- calculate_effect_size(read_data, "sch_type", "ra_disp")
+print(paste("Cohen's d for school type on academic reading:", round(d_sch_ra, 2)))
+
+# School type effect on recreational reading
+d_sch_rf <- calculate_effect_size(read_data, "sch_type", "rf_disp")
+print(paste("Cohen's d for school type on recreational reading:", round(d_sch_rf, 2)))
+
+# For experience, compare novice (0-5 years) vs. experienced (11+ years)
+# First create binary experience variable
+read_data$exp_binary <- factor(ifelse(read_data$experience == "0-5 years", "Novice",
+                                     ifelse(read_data$experience == "11-years and more", "Experienced", NA)))
+
+# Calculate effect sizes
+d_exp_ra <- calculate_effect_size(na.omit(read_data[, c("exp_binary", "ra_disp")]), "exp_binary", "ra_disp")
+print(paste("Cohen's d for experience (novice vs. experienced) on academic reading:", round(d_exp_ra, 2)))
+
+d_exp_rf <- calculate_effect_size(na.omit(read_data[, c("exp_binary", "rf_disp")]), "exp_binary", "rf_disp")
+print(paste("Cohen's d for experience (novice vs. experienced) on recreational reading:", round(d_exp_rf, 2)))
+```
+
+## Prediction Accuracy (Classification Tables)
+```{r prediction_accuracy}
+##########################################################
+# 8. Prediction Accuracy and Classification Tables
+##########################################################
+
+# Function to create classification table and calculate accuracy
+create_classification_table <- function(model, data) {
+  # Get predictions
+  predictions <- predict(model, newdata = data)
+  
+  # Get actual values (remove NAs)
+  actual <- na.omit(data[[all.vars(formula(model))[1]]])
+  predicted <- na.omit(predictions)
+  
+  # Ensure lengths match
+  min_length <- min(length(actual), length(predicted))
+  actual <- actual[1:min_length]
+  predicted <- predicted[1:min_length]
+  
+  # Create classification table
+  class_table <- table(Actual = actual, Predicted = predicted)
+  
+  # Calculate accuracy
+  accuracy <- sum(diag(class_table)) / sum(class_table)
+  
+  # Return results
+  return(list(table = class_table, accuracy = accuracy))
+}
+
+# Academic reading model
+ra_classification <- create_classification_table(model_read, read_data)
+print("Classification Table for Academic Reading Model:")
+print(ra_classification$table)
+print(paste("Accuracy:", round(ra_classification$accuracy * 100, 1), "%"))
+
+# Recreational reading model
+rf_classification <- create_classification_table(model_final_read, read_data)
+print("Classification Table for Recreational Reading Model:")
+print(rf_classification$table)
+print(paste("Accuracy:", round(rf_classification$accuracy * 100, 1), "%"))
+```
+
+## Interaction Effects Analysis
+```{r interaction_effects}
+##########################################################
+# 9. Interaction Effects
+##########################################################
+
+# Test interaction between experience and school type
+# For academic reading
+model_int_ra <- polr(ra_disp ~ experience * sch_type + ra_time + ra_length + 
+                    ra_tv + ra_music + ra_talk_phone + ra_video_game + 
+                    ra_soc_network, data = read_data)
+
+# Compare models
+compare_int_ra <- anova(model_read, model_int_ra, test = "Chisq")
+print("Test of interaction effect (experience * school type) for academic reading:")
+print(compare_int_ra)
+
+# For recreational reading
+model_int_rf <- polr(rf_disp ~ sch_type * rf_tv + rf_time + rf_length + 
+                    rf_music + rf_pd + rf_talk_phone + rf_onl_game + 
+                    rf_soc_network, data = read_data)
+
+# Compare models
+compare_int_rf <- anova(model_final_read, model_int_rf, test = "Chisq")
+print("Test of interaction effect (school type * TV watching) for recreational reading:")
+print(compare_int_rf)
+
+# Create cross-tabulation to visualize interaction patterns
+exp_sch_table <- with(read_data, table(experience, sch_type, ra_disp))
+print("Cross-tabulation of experience, school type, and academic reading displacement:")
+print(exp_sch_table)
+```
+
+## Model Comparison Across Reading Types
+```{r model_comparison}
+##########################################################
+# 10. Comparison of Academic vs. Recreational Reading Models
+##########################################################
+
+# Identify common predictors in both models
+# Here we'll use school type and TV watching as they appear in both models
+common_formula_ra <- ra_disp ~ sch_type + ra_tv
+common_formula_rf <- rf_disp ~ sch_type + rf_tv
+
+# Fit models with only common predictors
+common_model_ra <- polr(common_formula_ra, data = read_data)
+common_model_rf <- polr(common_formula_rf, data = read_data)
+
+# Extract coefficients and compare
+coef_ra <- coef(common_model_ra)
+coef_rf <- coef(common_model_rf)
+
+# Calculate odds ratios
+or_ra <- exp(coef_ra)
+or_rf <- exp(coef_rf)
+
+# Create comparison table
+predictor_names <- c("School Type (Urban/Suburban)", "TV Use (A little)", "TV Use (Some)", "TV Use (Most)")
+comparison_table <- data.frame(
+  Predictor = predictor_names,
+  Academic_OR = c(or_ra["sch_typeUrban/Suburban"], or_ra["ra_tv1"], or_ra["ra_tv2"], or_ra["ra_tv3"]),
+  Recreational_OR = c(or_rf["sch_typeUrban/Suburban"], or_rf["rf_tv1"], or_rf["rf_tv2"], or_rf["rf_tv3"]),
+  Ratio = c(or_rf["sch_typeUrban/Suburban"]/or_ra["sch_typeUrban/Suburban"], 
+            or_rf["rf_tv1"]/or_ra["ra_tv1"],
+            or_rf["rf_tv2"]/or_ra["ra_tv2"], 
+            or_rf["rf_tv3"]/or_ra["ra_tv3"])
+)
+
+print("Comparison of Effects Across Academic and Recreational Reading:")
+print(comparison_table)
+
+# Calculate differential impact (relative effect sizes)
+print("Relative impact (recreational vs. academic reading):")
+for (i in 1:nrow(comparison_table)) {
+  cat(sprintf("%s: Effect is %.2f times stronger for %s reading\n", 
+              comparison_table$Predictor[i], 
+              abs(comparison_table$Ratio[i]), 
+              ifelse(comparison_table$Ratio[i] > 1, "recreational", "academic")))
+}
+```
+

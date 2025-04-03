@@ -1,0 +1,607 @@
+---
+title: "Data Modeling and Correlational Study"
+author: "Nirmal Ghimire, K-16 Literacy Center"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      comment = NA,
+                      warning = FALSE,
+                      message = FALSE,
+                      tidy = 'styler',
+                      error = FALSE, 
+                      highlight = TRUE, 
+                      prompt = FALSE,
+                      R.options = list(width = 75))
+
+# Load Libraries
+library(tidyverse)
+library(ggplot2)
+library(janitor)
+library(stringr)
+library(readr)
+library(dplyr)
+library(scales)
+library(ggthemes)
+library(gridExtra)
+library(FactoMineR)
+library(factoextra)
+```
+
+## <span style="color:blue; font-family:Arial;">List of the Variables (after and before Cleaning)</span>
+<span style="color:blue; font-family:Arial;">We are going to use the `raw_data_clean` further modeling. The `raw_data` is the raw version of uploaded data.</span> 
+```{r data}
+raw_data <- read_csv("E:/OneDriveUT Tyler/Desktop/Reading Habits Study Time Diary Survey for Moroccan Teachers/final_data.csv")
+# Getting Rid of Second and Third Rows from the Data set
+raw_data <- raw_data[-c(2:3), ]
+      #names(raw_data)
+# Making column names consistent by using clean_names function and saving the data in a new table
+raw_data_clean <- raw_data|>
+  clean_names()
+# Comparing column names after and before cleaning them
+names(raw_data_clean)
+dim(raw_data_clean)
+```
+
+
+```{r get_input_list}
+## Get the list of all non-NA values in your data
+data <- na.omit(unlist(raw_data_clean[c("q8_6_text", "q12_10_text", "q13_11_text", "q14_5_text", "q17_8_text", "q18_7_text", "q20_9_text", "q23_7_text", "q24_6_text", "q27_8_text", "q29_8_text", "q30_6_text", "q33_16_text", "q35_8_text", "q36_6_text")]))
+
+# Convert the list to a table
+#data.frame(data)
+```
+
+## <span style="color:blue; font-family:Arial;">Breaking the Dataset in Two Different Studies</span>
+```{r break_data}
+# create reading_data dataset
+reading_data <- raw_data_clean %>%
+  select(duration_in_seconds, ip_address, q4, q6, q7, q8, q8_6_text, q12_1:q12_10_text, q13_1:q13_11_text,
+         q14, q14_5_text, q15, q16, q17_1:q17_8_text, q18_1:q18_7_text, q19, q20, q20_9_text, q21,
+         q22, q23_1:q23_7_text, q24_1:q24_6_text, q25)
+
+# create tv_internet_data dataset
+tv_internet_data <- raw_data_clean %>%
+  select(duration_in_seconds, ip_address, q4, q6, q7, q8, q8_6_text, q12_1:q12_10_text, q13_1:q13_11_text,
+         q26:q37)
+
+# save datasets as CSV files
+#write.csv(reading_data, "reading_data.csv", row.names = FALSE)
+#write.csv(tv_internet_data, "tv_internet_data.csv", row.names = FALSE)
+
+# Checking the Variables 
+names(reading_data)
+names(tv_internet_data)
+dim(reading_data)
+```
+
+## <span style="color:blue; font-family:Arial;">Reading Study Data Modeling</span>
+```{r getting_rid_of_row_two}
+reading_data <- read_csv("C:/Users/nghimire/OneDrive - University of Texas at Tyler/Desktop/Reading Habits Study Time Diary Survey for Moroccan Teachers/reading_data.csv")
+#str(reading_data)
+```
+
+
+```{r change_class}
+#Changing the variable class
+reading_data <- reading_data %>%
+      # convert data types
+  mutate(
+    duration_in_seconds = as.numeric(duration_in_seconds),
+    across(q4:q25, as.factor))
+#summary(reading_data)
+```
+
+<span style="color:blue; font-family:Arial;">Looking at the summary, the variables having `_text` at the end is not useful. Getting rid of them:</span>
+```{r get_rid_text}
+new_data <- reading_data %>%
+  select(-ends_with("_text"))
+str(new_data)
+```
+
+## <span style="color:blue; font-family:Arial;">Variables Used for Descriptive Analysis</span> 
+
+![Q-13](q-13.JPG)
+
+* <span style="color:blue; font-family:Arial;">The information in Question 13 doesn't seem to have direct use in the analysis. We can use it in descriptive analysis.</span> 
+
+## <span style="color:blue; font-family:Arial;">Background Variables Used in the Model</span>
+![Q-4](q-4.JPG)
+![Q-8](q-8.JPG)
+
+* <span style="color:blue; font-family:Arial;">This variable will be modified and used in the model. We combined teachers based on their years of experience. The new categories are **a) 0-5 Years, b) 6-10 Years, c) more than 10 Years**</span> 
+
+![Q-6](q-6.JPG)
+
+* <span style="color:blue; font-family:Arial;">This variable got dichotomized and the new categories were **a) Rural, b) Urban (Suburban + Urban)**</span> 
+
+![Q-7](q-7.JPG)
+
+## <span style="color:blue; font-family:Arial;">Variables Needed in Reading for Fun Model</span>
+
+![Q-14](q-14.JPG)
+![Q-15](q-15.JPG)
+![Q-16](q-16.JPG)
+![Q-17](q-17.JPG)
+![Q-19](q-19.JPG)
+
+## <span style="color:blue; font-family:Arial;">Variables Needed in Reading for Academic Purposes Model</span>
+
+![Q-20](q-20.JPG)
+![Q-21](q-21.JPG)
+![Q-22](q-22.JPG)
+![Q-23](q-23.JPG)
+![Q-25](q-25.JPG)
+
+## <span style="color:blue; font-family:Arial;">Variable Summary</span>
+```{r subset_data}
+read_data <- reading_data %>%
+  select(duration_in_seconds, ip_address,
+         q4, q6, q7, q8, q14, q15, q16, 
+         q17_1, q17_2, q17_3, q17_4, q17_5, q17_6, q17_7,
+         q19, q20, q21, q22, 
+         q23_1, q23_2, q23_3, q23_4, q23_5, q23_6, q23_7, q25)
+summary(read_data[ ,-(1:2)])
+```
+
+## <span style="color:blue; font-family:Arial;">Preparing Variables to Use in the Models</span>
+- **Question 4 [q4 - *gender*]**: Response Codes
+  Female, Male
+- **Question 6 [q6 - *experience*]**: Response Codes
+  0-5 years = 0, 6-10 years = 1, 11-years and more = 2
+- **Question 7 [q7 - *sch_type*]**: Response Codes
+  Rural = 0, Urban/Suburban = 1
+- **Question 8 [q8 - *tchr_type*]**: Response Codes
+  pre-service = 0, inservice = 1
+- **Question 15 [q15 - *rf_time*]**: Response Codes 
+- **Question 16 [q16 - *rf_length*]**: Response Codes 
+  0 minutes = 0, 15  minutes = 1, 30  minutes = 2, 45  minutes = 3,
+  1 hour = 4, 1.5 hours = 5, 2 hours = 6, 3 hours or more = 7
+- **Question 17 [q17_1 - *rf_tv*, q17_2 - *rf_music*, q17_3 - *rf_pd*, q17_4 - *rf_write*, q17_5 - *rf_talk_phone*, q17_6 - *rf_onl_game*, q17_7 - *rf_soc_network*]**: Response Codes 
+  Never = 0, Alittle of the Time = 1, Some of the Time = 2, Most of the Time = 3
+- **Question 19 [q19 - *rf_disp*]**: Response Codes
+  No, not at all = 0, Yes, some = 1, Yes, a lot = 2
+- **Question 20 [q20 - *ra_text*]**: Response Codes
+  Textbook Chapters-Online, Journal articles-Online, Reports-Online, Novels-Online, Textbook Chapters-In   print, Reports-In print, Novels-In print, Other materials-Please specify
+- **Question 21 [q21 - *ra_time*]**: Response Codes
+  6:00 a.m.-11:59 a.m., Noon-6:00 p.m., 6:00 p.m.-11:59 p.m., Midnight-5:59 a.m.
+- **Question 22 [q22 - *ra_length*]**: Response Codes
+ 0 minutes = 0, 15  minutes = 1, 30  minutes = 2, 45  minutes = 3,
+  1 hour = 4, 1.5 hours = 5, 2 hours = 6, 3 hours or more = 7
+- **Question 23 [q23_1 - *ra_tv*, q23_2 - *ra_music*, q23_3 - *ra_write*, q23_4 - *ra_talk_phone*, q23_5 - *ra_video_game*, q23_6 - *ra_soc_network*, q23_7 - *ra_other*]**: Response Codes
+  Never = 0, A little of the time = 1, Some of the time = 2, Most of the time = 3
+- **Question 25 [q25 - *ra_disp*]**: Response Codes 
+  No, not at all = 0, Yes, some = 1, Yes, a lot = 2
+```{r preparing_variables}
+# Question 6
+read_data$q6 <- factor(
+  ifelse(read_data$q6 %in% c("0 teaching experience", "1-5 years"), 0,
+    ifelse(read_data$q6 %in% c("11-15 years","16 - 20", "20+"), 2,
+      ifelse(read_data$q6 == "6-10 years", 1,read_data$q6)
+        )
+  ),
+  levels = c(0, 1, 2),
+  labels = c("0-5 years", "6-10 years", "11-years and more")
+)
+  #summary(read_data$q6)
+
+# Question 7
+read_data$q7 <- factor(
+  ifelse(read_data$q7 == "Click to write Choice 4", NA,
+    ifelse(read_data$q7 %in% c("Urban", "Suburban"), 1,
+      ifelse(read_data$q7 == "Rural", 0, read_data$q7)
+    )
+  ),
+  levels = c(0, 1),
+  labels = c("Rural", "Urban/Suburban")
+  )
+    #summary(read_data$q7)
+
+# Question 8
+read_data$q8 <- factor(ifelse(
+  read_data$q8 == "I am a pre-service teacher (i.e., I am currently in training at ​Centre régional des métiers de l’éducation et de la formation (CRMEF) or Ecole Normale Supérieure (ENS)",
+  0,
+  ifelse(
+    read_data$q8 == "I am an-service teacher (i.e., I am currently working full-time as a teacher)",
+    1,
+    NA
+  )
+), levels = c(0, 1), labels = c("pre-service", "inservice"))
+    #summary(read_data$q8)
+
+# Question 14
+# Create a function to extract the first selection
+read_data$q14 <- as.character(read_data$q14)
+extract_first_selection <- function(text) {
+  selections <- strsplit(text, ",")[[1]]
+  first_selection <- trimws(selections[1])
+  return(first_selection)
+}
+# Apply the function to create a new variable with the first selection
+read_data$q14_first_selection <- sapply(read_data$q14, extract_first_selection)
+# Recode the first selection into the desired categories
+read_data$q14_recode <- factor(
+  read_data$q14_first_selection,
+  levels = c("News stories online", "Social media threads (e.g., Face book, Instagram, Twitter, etc.)", "Books online", "Magazines online", "Newspapers-In print", "Magazines-In print", "Other Materials in print (please specify)"),
+  labels = c("News stories online", "Social media threads", "Books online", "Magazines online", "Newspapers-In print", "Magazines-In print", "Other Materials in print (please specify)")
+)
+# Remove the intermediate variable 
+ read_data$q14_first_selection <- NULL
+# Change the class of the Variable
+ read_data$q14_recode <- as.factor(read_data$q14_recode)
+  #summary(read_data$q14_recode)
+
+# Question 16
+read_data$q16 <- factor(recode(read_data$q16,
+  "0 minutes" = 0,
+  "15  minutes" = 1,
+  "30  minutes" = 2,
+  "45  minutes" = 3,
+  "1 hour" = 4,
+  "1.5 hours" = 5,
+  "2 hours" = 6,
+  "3 hours or more" = 7
+))
+# Convert to factor with the specified levels
+levels(read_data$q16) <- c("0 minutes", "15 minutes", "30 minutes", "45 minutes", "60 minutes", "90 minutes", "120 minutes", "180 minutes or more")
+    #summary(read_data$q16)
+    #summary(as.numeric(read_data$q16))
+
+# Re-coding Responses in Question 17(q17_2, q17_3, q17_4, q17_5, q17_6, q17_7) 
+# Function
+recodelikert <- function(data, variables, categories) {
+  for (variable in variables) {
+    data[[variable]] <- recode(data[[variable]], !!!categories)
+    data[[variable]] <- as.factor(data[[variable]])
+  }
+  return(data)
+}
+# Defining Categories
+categories <- list(
+  "Never" = 0,
+  "Alittle of the Time" = 1,
+  "Some of the Time" = 2,
+  "Most of the Time" = 3
+)
+read_data <- recodelikert(read_data, c("q17_1", "q17_2", "q17_3", "q17_4", "q17_5", "q17_6", "q17_7"), categories)
+
+# Questions 23 (q23_1, q23_2, q23_3, q23_4, q23_5, q23_6, q23_7)
+# Defining Categories
+categories_1 <- list(
+  "Never" = 0,
+  "A little of the time" = 1,
+  "Some of the time" = 2,
+  "Most of the time" = 3
+)
+read_data <- recodelikert(read_data, c("q23_1", "q23_2", "q23_3", "q23_4", "q23_5", "q23_6", "q23_7"), categories_1)
+
+# Question 19, and saving as q19_recode
+read_data$q19_recode <- factor(
+  ifelse(read_data$q19 %in% c("Did not multi-task", "Not sure"), NA,
+         ifelse(read_data$q19 == "No, not at all", 0,
+                ifelse(read_data$q19 == "Yes, some", 1,
+                       ifelse(read_data$q19 == "Yes, a lot", 2, read_data$q19)
+                )
+         )
+  ),
+  levels = c(0, 1, 2),
+  labels = c("No, not at all", "Yes, some", "Yes, a lot"),
+  exclude = NULL
+)
+
+# Question 20
+read_data$q20 <- as.character(read_data$q20)
+# Apply the function to create a new variable with the first selection
+read_data$q20_first_selection <- sapply(read_data$q20, extract_first_selection)
+# Recode the first selection into the desired categories
+read_data$q20_recode <- factor(
+  read_data$q20_first_selection,
+  levels = c("Textbook Chapters-Online", "Journal articles-Online", "Reports-Online", "Novels-Online
+", "Textbook Chapters-In print", "Reports-In print", "Novels-In print", "Other materials-Please specify"),
+  labels = c("Textbook Chapters-Online", "Journal articles-Online", "Reports-Online", "Novels-Online", "Textbook Chapters-In print", "Reports-In print", "Novels-In print", "Other materials-Please specify")
+)
+# Remove the intermediate variable
+read_data$q20_first_selection <- NULL
+
+# Question 21
+read_data$q21 <- as.character(read_data$q21)
+# Apply the function to create a new variable with the first selection
+read_data$q21_first_selection <- sapply(read_data$q21, extract_first_selection)
+# Recode the first selection into the desired categories
+read_data$q21_recode <- factor(
+  read_data$q21_first_selection,
+  levels = c("6:00 a.m.-11:59 a.m.", "Noon-6:00 p.m.", "6:00 p.m.-11:59 p.m.", "Midnight-5:59 a.m."),
+  labels = c("6:00 a.m.-11:59 a.m.", "Noon-6:00 p.m.", "6:00 p.m.-11:59 p.m.", "Midnight-5:59 a.m.")
+)
+# Remove the intermediate variable
+read_data$q21_first_selection <- NULL
+
+# Question 22
+read_data$q22 <- factor(recode(read_data$q22,
+  "0 minutes" = 0,
+  "15 minutes" = 1,
+  "30 minutes" = 2,
+  "45 minutes" = 3,
+  "1 hour" = 4,
+  "1.5 hours" = 5,
+  "2 hours" = 6,
+  "3 hours or more" = 7
+))
+# Convert to factor with the specified levels
+levels(read_data$q22) <- c("0 minutes", "15 minutes", "30 minutes", "45 minutes", "60 minutes", "90 minutes", "120 minutes", "180 minutes or more")
+
+# Question 25 and Saving as q25_recode
+read_data$q25_recode <- factor(
+  ifelse(read_data$q25 %in% c("Did not multi-task", "Not sure"), NA,
+         ifelse(read_data$q25 == "No, not at all", 0,
+                ifelse(read_data$q25 == "Yes, some", 1,
+                       ifelse(read_data$q25 == "Yes, a lot", 2, read_data$q25)
+                )
+         )
+  ),
+  levels = c(0, 1, 2),
+  labels = c("No, not at all", "Yes, some", "Yes, a lot"),
+  exclude = NULL
+)
+
+#summary(read_data[,-2])
+#str(read_data)
+```
+
+
+```{r changing_names}
+read_data <- read_data %>%
+  rename(gender = q4,
+         experience = q6,
+         sch_type = q7,
+         tchr_type = q8,
+         rf_text = q14_recode,
+         rf_time = q15,
+         rf_length = q16,
+         rf_tv = q17_1,
+         rf_music = q17_2,
+         rf_pd = q17_3,
+         rf_write = q17_4,
+         rf_talk_phone = q17_5,
+         rf_onl_game = q17_6,
+         rf_soc_network = q17_7,
+         rf_disp = q19_recode,
+         ra_text = q20_recode,
+         ra_time = q21_recode,
+         ra_length = q22,
+         ra_tv = q23_1,
+         ra_music = q23_2,
+         ra_write = q23_3,
+         ra_talk_phone = q23_4,
+         ra_video_game = q23_5,
+         ra_soc_network = q23_6,
+         ra_other = q23_7,
+         ra_disp = q25_recode)
+summary(read_data[,-2])
+#str(read_data)
+```
+
+
+## <span style="color:blue; font-family:Arial;">1. Investigating the Relationship Between Displacement and Demographic Factors:</span>
+```{r media_dem}
+# Cross-tabulation of rf_disp and gender
+rf_disp_gender_xtab <- xtabs(~ rf_disp + gender, data = read_data)
+# Calculate percentage values with two decimal places
+rf_disp_gender_xtab_percentage <- round(prop.table(rf_disp_gender_xtab, margin = 2) * 100, 2)
+rf_disp_gender_xtab_percentage
+
+# Cross-tabulation of ra_disp and gender
+ra_disp_gender_xtab <- xtabs(~ ra_disp + gender, data = read_data)
+# Calculate percentage values with two decimal places
+ra_disp_gender_xtab_percentage <- round(prop.table(ra_disp_gender_xtab, margin = 2) * 100, 2)
+ra_disp_gender_xtab_percentage
+
+# Cross-tabulation of rf_disp and experience
+rf_disp_experience_xtab <- xtabs(~ rf_disp + experience, data = read_data)
+# Calculate percentage values with two decimal digits
+rf_disp_experience_xtab_percentage <- round(prop.table(rf_disp_experience_xtab, margin = 2) * 100, 2)
+rf_disp_experience_xtab_percentage
+
+# Cross-tabulation of rf_disp and experience
+ra_disp_experience_xtab <- xtabs(~ ra_disp + experience, data = read_data)
+# Calculate percentage values with two decimal places
+ra_disp_experience_xtab_percentage <- round(prop.table(ra_disp_experience_xtab, margin = 2) * 100, 2)
+ra_disp_experience_xtab_percentage
+
+# Cross-tabulation of rf_disp and school type
+rf_disp_sch_type_xtab <- xtabs(~ rf_disp + sch_type, data = read_data)
+# Calculate percentage values with two decimal places
+rf_disp_sch_type_xtab_percentage <- round(prop.table(rf_disp_sch_type_xtab, margin = 2) * 100, 2)
+rf_disp_sch_type_xtab_percentage
+
+# Cross-tabulation of ra_disp and school type
+ra_disp_sch_type_xtab <- xtabs(~ ra_disp + sch_type, data = read_data)
+# Calculate percentage values with two decimal places
+ra_disp_sch_type_xtab_percentage <- round(prop.table(ra_disp_sch_type_xtab, margin = 2) * 100, 2)
+ra_disp_sch_type_xtab_percentage
+
+# Cross-tabulation of rf_disp and teacher type
+rf_disp_tchr_type_xtab <- xtabs(~ rf_disp + tchr_type, data = read_data)
+rf_disp_tchr_type_xtab_percentage <- round(prop.table(rf_disp_tchr_type_xtab, margin = 2) * 100, 2)
+rf_disp_tchr_type_xtab_percentage
+
+# Cross-tabulation of rf_disp and teacher type
+ra_disp_tchr_type_xtab <- xtabs(~ ra_disp + tchr_type, data = read_data)
+#ra_disp_tchr_type_xtab
+# Calculate percentage values with two decimal places
+ra_disp_tchr_type_xtab_percentage <- round(prop.table(ra_disp_tchr_type_xtab, margin = 2) * 100, 2)
+ra_disp_tchr_type_xtab_percentage
+```
+
+
+```{r rf_disp, out.width="100%"}
+# Filter out NAs from the dataset
+filtered_data <- read_data[complete.cases(read_data), ]
+
+# Create the grouped bar plots
+gender_rf_disp <- ggplot(filtered_data, aes(x = rf_disp, fill = gender)) +
+  geom_bar(position = "dodge", color = "black") +
+  labs(x = "Reading for Fun Displacement", y = "Frequency") +
+  scale_y_continuous(breaks = NULL) +  # Remove y-axis ticks
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        axis.ticks.y = element_blank(),  # Remove y-axis ticks
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 8),
+        axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10),
+        plot.title = element_text(size = 12, face = "bold")) +
+  scale_fill_manual(values = c("#0072B2", "#E69F00"),
+                    labels = c("Female", "Male"))
+
+gender_ra_disp <- ggplot(filtered_data, aes(x = ra_disp, fill = gender)) +
+  geom_bar(position = "dodge", color = "black") +
+  labs(x = "Reading for Academic Purposes", y = "") +
+  scale_y_continuous(breaks = NULL) +  # Remove y-axis ticks
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        axis.ticks.y = element_blank(),  # Remove y-axis ticks
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 8),
+        axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10),
+        plot.title = element_text(size = 12, face = "bold")) +
+  scale_fill_manual(values = c("#0072B2", "#E69F00"),
+                    labels = c("Female", "Male"))
+
+# Arrange the plots side by side
+grid.arrange(gender_rf_disp, gender_ra_disp, ncol = 2)
+```
+
+
+```{r}
+final_data <- read_data|>
+  dplyr::select(gender, experience, sch_type,
+                tchr_type, rf_time, rf_length, 
+                rf_tv, rf_music, rf_pd, rf_write,
+                rf_talk_phone, rf_onl_game, rf_soc_network,
+                ra_length, ra_tv, ra_music, ra_write, 
+                ra_talk_phone, ra_video_game, ra_soc_network, 
+                ra_other, rf_text, rf_disp, ra_text,
+                ra_time, ra_disp)
+#dim(final_data)
+#str(final_data)
+#names(final_data)
+```
+
+## <span style="color:blue; font-family:Arial;">Chi-square test for Reading For Fun</span> 
+Overall, the analysis aimed to understand how different factors, such as gender, experience, school type, specific activities during reading, and overall reading behavior, are related to the displacement of time.
+
+```{r}
+# Select the relevant categorical variables for analysis
+rf_vars <- final_data %>%
+  select(gender, experience, sch_type, rf_time, tchr_type,
+         rf_length, rf_tv, rf_music, rf_pd, rf_write,
+         rf_talk_phone, rf_onl_game, rf_soc_network, 
+         rf_text, rf_disp)
+
+# Perform chi-square tests for association between variables
+chisq_results_rf <- lapply(rf_vars, function(var) {
+  chisq.test(table(final_data$rf_disp, var))
+})
+
+# Print the chi-square test results
+for (i in seq_along(chisq_results_rf)) {
+  var_name_rf <- names(chisq_results_rf)[i]
+  chisq_res_rf <- chisq_results_rf[[i]]
+  cat("Chi-square test results for", var_name_rf, ":\n")
+  print(chisq_res_rf)
+  cat("\n")
+}
+```
+
+The chi-square test results revealed the following findings:
+
+* There was no significant association between gender and the displacement of time, χ²(2) = 3.53, p = 0.17.
+* Similarly, no significant association was found between experience and the displacement of time, χ²(4) = 6.17, p = 0.19.
+* However, a significant association was observed between school type and the displacement of time, χ²(2) = 22.34, p < 0.001.
+* The analysis also indicated a significant association between timing of the reading for fun and the displacement of time, χ²(6) = 17.63, p = 0.01.
+* Teacher type showed no significant association with the displacement of time, χ²(2) = 0.53, p = 0.77.
+* Regarding the length of reading for fun, a significant association was found with the displacement of time, χ²(14) = 31.99, p = 0.00.
+* The displacement of time was significantly associated with reading for fun activities such as watching TV, listening to music, personal devices usage, and social networking, with p-values of 0.001, 0.04, 0.02, and 0.01, respectively.
+* However, there was no significant association between the displacement of time and activities like writing, talking on the phone, playing online games, and reading texts (p > 0.05).
+* Finally, a significant association was observed between the overall displacement of time and reading for fun, χ²(4) = 1264, p < 0.001.
+
+In conclusion, the findings suggest that school type, reading for fun time, and specific activities during reading for fun may have a significant impact on the displacement of time. However, gender, experience, and teacher type do not seem to be strongly associated with the displacement of time.
+
+## <span style="color:blue; font-family:Arial;">Chi-square test for Reading For Academic Purposes</span>
+```{r}
+# Select the relevant categorical variables for analysis
+ra_vars <- final_data %>%
+  select(gender, experience, sch_type, tchr_type,ra_time,
+         ra_length, ra_tv, ra_music, ra_write,ra_other,
+         ra_talk_phone, ra_video_game, ra_soc_network, 
+         ra_text, ra_disp)
+
+# Perform chi-square tests for association between variables
+chisq_results_ra <- lapply(ra_vars, function(var) {
+  chisq.test(table(final_data$ra_disp, var))
+})
+
+# Print the chi-square test results
+for (i in seq_along(chisq_results_ra)) {
+  var_name_ra <- names(chisq_results_ra)[i]
+  chisq_res_ra <- chisq_results_ra[[i]]
+  cat("Chi-square test results for", var_name_ra, ":\n")
+  print(chisq_res_ra)
+  cat("\n")
+}
+```
+
+Here's the interpretation of the chi-square test results for the variables:
+
+* gender: The chi-square test shows a non-significant association between the ra_disp (displacement of time) and gender (p-value = 0.1889). This suggests that there is no strong evidence to conclude that the displacement of time differs significantly based on gender.
+
+* experience: The chi-square test indicates a significant association between ra_disp and experience (p-value = 0.02414). This suggests that the displacement of time may vary based on the level of teacher experience.
+
+* sch_type: The chi-square test reveals a significant association between ra_disp and sch_type (p-value = 0.01659). This implies that the displacement of time may differ across rural and urban/suburban schools.
+
+* tchr_type: The chi-square test shows a non-significant association between ra_disp and tchr_type (p-value = 0.9439). This indicates that there is no strong evidence to suggest that the displacement of time differs significantly based on teacher type.
+
+* ra_time, ra_length, ra_tv, ra_music, ra_write, ra_other, ra_talk_phone, ra_video_game, ra_soc_network, ra_text, and ra_disp: The chi-square tests indicate significant associations between ra_disp and these variables (p-values < 0.05). This implies that the displacement of time varies across different levels of these variables, suggesting that they may influence the displacement of time.
+
+* Activities ra_write (p-value = 0.3627), ra_other (p-value = 0.2078), ra_video_game (p-value = 0.2358), ra_soc_network (p-value = 0.07936) did not have statistically significant association with the displacement of time from reading fro academic purposes indicating that they do not influence the displacement.  
+
+## <span style="color:blue; font-family:Arial;">Overall Findings for both Reading for Fun and Reading for Academic Purposes</span>
+Based on the chi-square test results, the variables that had a statistically significant association with reading for fun and the displacement of time are:
+
+* sch_type
+* rf_time
+* rf_length
+* rf_tv
+* rf_music
+* rf_pd
+* rf_talk_phone
+* rf_onl_game
+* rf_soc_network
+
+These variables showed a significant association with the displacement of time while reading for fun.
+
+On the other hand, the variables that had a statistically significant relationship with reading for academic purposes and the displacement of time are:
+
+* experience
+* sch_type
+* ra_time
+* ra_length
+* ra_tv
+* ra_music
+* ra_talk_phone
+* ra_video_game
+* ra_soc_network
+
+These variables showed a significant association with the displacement of time while reading for academic purposes.
+
+It's important to note that the significance of these associations indicates that these variables are likely to have an impact on the displacement of time during reading, either for fun or academic purposes.
